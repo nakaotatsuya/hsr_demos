@@ -1,0 +1,15 @@
+<launch>
+  <!-- set lowest png compression level -->
+  <arg name="camera" default="/hsrb/head_rgbd_sensor" />
+  
+  <param name="$(arg camera)/depth/image_raw/compressed/format" value="png" />
+  <param name="$(arg camera)/depth/image_raw/compressed/png_level" value="1" />
+  <param name="$(arg camera)/depth/image_raw/compressedDepth/png_level" value="1" />
+  <param name="$(arg camera)/depth_registered/image_raw/compressed/format" value="png" />
+  <param name="$(arg camera)/depth_registered/image_raw/compressed/png_level" value="1" />
+  <param name="$(arg camera)/depth_registered/image_raw/compressedDepth/png_level" value="1" />
+  <param name="$(arg camera)/depth_registered/image_rect_raw/compressed/format" value="png" />
+  <param name="$(arg camera)/depth_registered/image_rect_raw/compressed/png_level" value="1" />
+  <param name="$(arg camera)/depth_registered/image_rect_raw/compressedDepth/png_level" value="1" />
+
+</launch>
