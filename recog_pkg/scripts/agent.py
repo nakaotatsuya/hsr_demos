@@ -6,7 +6,7 @@ import hsrb_interface
 from hsrb_interface import geometry
 from hsrb_interface import exceptions
 from geometry_msgs.msg import PoseStamped
-
+#from recog_pkg.msg import Camera3d
 import tf2_ros
 import tf_conversions
 import math
@@ -24,6 +24,14 @@ class Agent():
         kitchen_pose = geometry.Pose(pos=geometry.Vector3(x=3.11, y=1.21, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=-0.01023836327822357, w=0.9999475865851083))
         self.omni_base.go_pose(kitchen_pose)
 
+    def go_to_yakan(self):
+        yakan_pose = geometry.Pose(pos=geometry.Vector3(x=3.108781824048564, y=0.037752328711472494, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=0.013848295774654074, w=0.9999041077544075))
+        self.omni_base.go_pose(yakan_pose)
+
+    def go_to_stop_button(self):
+        stop_button_pose = geometry.Pose(pos=geometry.Vector3(x=3.1842090100769735, y=-0.33555729630596876, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=0.014499304926615803, w=0.999894879553168))
+        self.omni_base.go_pose(stop_button_pose)
+        
     def go_to_microwave(self):
         microwave_pose = geometry.Pose(pos=geometry.Vector3(x=1.909, y=1.779478, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=0.70096336, w=0.713197))
         self.omni_base.go_pose(microwave_pose)
@@ -32,9 +40,9 @@ class Agent():
         fridge_pose = geometry.Pose(pos=geometry.Vector3(x=0.1457817782465553, y=1.5697370723246589, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=0.7400625754780703, w=0.6725380170494195))
         self.omni_base.go_pose(fridge_pose)
 
-    def base_pose(self):
+    def base_pose(self, x=0.2):
         self.whole_body.move_to_neutral()
-        self.whole_body.move_to_joint_positions({"arm_lift_joint": 0.3, "head_tilt_joint": 0})
+        self.whole_body.move_to_joint_positions({"arm_lift_joint": x, "head_tilt_joint": 0})
 
     def lookup_transform(self, parent, child):
         tfBuffer = tf2_ros.Buffer()
@@ -42,10 +50,10 @@ class Agent():
         t = tfBuffer.lookup_transform(parent, child, rospy.Time(0))
         return t
 
-    def get_bounding_box(self):
+    def get_bounding_box(self, color):
         base_to_target_point = None
         self.target_coords = None
-        msg = one_shot_subscribe("/HSI_color_filter/boxes_red", timeout=10000)
+        msg = one_shot_subscribe("/HSI_color_filter/boxes_"+color, timeout=10000)
         print(msg.boxes)
         if msg:
             distance_x = 0
@@ -63,19 +71,37 @@ class Agent():
         else:
             print("msg is empty")
 
-    def solve_ik(self, target, fl_vec=[0,0,0], frame="base_link"):
+    def solve_ik(self, target, grasp_type, fl_vec=[0,0,0], frame="base_link"):
         self.whole_body.linear_weight = 100.0
         self.whole_body.angular_weight = 100.0
-        self.whole_body.move_end_effector_pose(
-            geometry.pose(x=(target.x + fl_vec[0]),
-                          y=(target.y + fl_vec[1]),
-                          z=(target.z + fl_vec[2]),
-                          ei=-math.pi/2, ek=-math.pi/2),
-                          ref_frame_id=frame)
+        if grasp_type == "front_horizontal":
+            self.whole_body.move_end_effector_pose(
+                geometry.pose(x=(target.x + fl_vec[0]),
+                              y=(target.y + fl_vec[1]),
+                              z=(target.z + fl_vec[2]),
+                              ei=-math.pi/2, ek=-math.pi/2),
+                ref_frame_id=frame)
+            
+        elif grasp_type == "front_vertical":
+            self.whole_body.move_end_effector_pose(
+                geometry.pose(x=(target.x + fl_vec[0]),
+                              y=(target.y + fl_vec[1]),
+                              z=(target.z + fl_vec[2]),
+                              ej=math.pi/2),
+                ref_frame_id=frame)
+            
+        elif grasp_type == "top":
+            self.whole_body.move_end_effector_pose(
+                geometry.pose(x=(target.x + fl_vec[0]),
+                              y=(target.y + fl_vec[1]),
+                              z=(target.z + fl_vec[2]),
+                              ei=-math.pi*5/6, ek=-math.pi/2),
+                ref_frame_id=frame)
 
     def microwave_solve_ik(self):
-        microwave_point = self.get_bounding_box()
-        self.solve_ik(microwave_point, fl_vec=[-0.2,0.0,0.0])
+        #self.base_pose(x=0.3)
+        microwave_point = self.get_bounding_box("red")
+        self.solve_ik(microwave_point, "front_horizontal", fl_vec=[-0.2,0.0,0.0])
         self.whole_body.move_end_effector_pose(
             geometry.pose(z=0.14), ref_frame_id="hand_palm_link")
         self.gripper.apply_force(2.3)
@@ -107,7 +133,34 @@ class Agent():
         self.whole_body.move_end_effector_pose(geometry.pose(x=-0.15), ref_frame_id="hand_palm_link")
         # self.whole_body.impedance_config = None
 
-    #def fridge_solve_ik(self):
+    def find_stop_button_pose(self):
+        self.whole_body.move_to_joint_positions({"arm_lift_joint" : 0.3})
+        self.whole_body.move_to_joint_positions({"head_tilt_joint": -0.5})
+        
+    def stop_yakan(self):
+        self.whole_body.move_to_neutral()
+        self.whole_body.move_to_joint_positions({"arm_lift_joint": 0.6})
+        self.whole_body.move_to_joint_positions({"wrist_flex_joint": -1.919})
+        self.gripper.apply_force(1.0)
+        self.whole_body.move_to_joint_positions({"arm_flex_joint": -1.0})
+        
+        self.whole_body.impedance_config = "compliance_hard"
+        self.whole_body.move_end_effector_pose(geometry.pose(z=0.03), ref_frame_id="hand_palm_link")
+        self.whole_body.impedance_config = None
+        
+    def yakan_solve_ik(self):
+        yakan_point = self.get_bounding_box("yellow")
+        self.solve_ik(yakan_point, "front_horizontal", fl_vec=[-0.1, 0.0, 0.2])
+        self.whole_body.move_end_effector_pose(
+            geometry.pose(y=0.02), ref_frame_id="hand_palm_link")
+        self.whole_body.move_end_effector_pose(
+            geometry.pose(z=0.1), ref_frame_id="hand_palm_link")
+        self.whole_body.move_end_effector_pose(
+            geometry.pose(x=-0.02), ref_frame_id="hand_palm_link")
+        
+        self.gripper.apply_force(1.7)
+
+        self.whole_body.move_end_effector_pose(geometry.pose(y=-0.05) ,ref_frame_id="hand_palm_link")
         
 #def callback(msg):
 #    boundingBoxList = msg.boxes

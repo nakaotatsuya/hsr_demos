@@ -1,0 +1,14 @@
+<launch>
+  <node name="tf_broadcaster"
+        pkg="recog_pkg" type="tf_broadcaster.py"
+        output="screen">
+    <param name="button" type="string" value="button1"/>
+    <remap from="~input" to="/camera_3d_point" />
+  </node>
+
+  <node name="two2three"
+        pkg="recog_pkg" type="two2three.py"
+        output="screen">
+    <remap from="~output" to="/camera_3d_point"/>
+  </node>
+</launch>
