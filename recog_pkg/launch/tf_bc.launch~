@@ -1,0 +1,4 @@
+<launch>
+  <node name="tf_bc"
+        pkg="recog_pkg" type="tf_bc.py" />
+</launch>

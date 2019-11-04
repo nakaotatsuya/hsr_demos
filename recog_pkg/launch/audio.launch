@@ -1,0 +1,7 @@
+<launch>
+  <node name="audiotimestamped"
+        pkg="recog_pkg" type="audiotimestamped.py">
+    <remap from="~audio" to="/audio" />
+    <remap from="~audiotime" to="/audiotime" />
+  </node>
+</launch>

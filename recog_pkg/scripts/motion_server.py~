@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+
+import rospy
+from std_srvs.srv import Empty, EmptyResponse
+
+rospy.Service('hoge', Empty, callback)
+
+def callback(req):
+    # hsrb
+    

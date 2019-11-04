@@ -1,0 +1,4 @@
+<launch>
+  <node name="stop_button"
+        pkg="recog_pkg" type="stop_button.py" output="screen" />
+</launch>

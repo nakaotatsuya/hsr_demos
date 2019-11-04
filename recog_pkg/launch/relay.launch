@@ -2,7 +2,6 @@
 <launch>
 
   <include file="$(find recog_pkg)/launch/png.launch" />
-  
   <arg name="camera" default="head_rgbd_sensor_remote"/>
   <arg name="manager" default="/hsrb/head_rgbd_sensor/head_rgbd_sensor_nodelet_manager" />
 

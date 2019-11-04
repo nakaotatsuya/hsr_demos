@@ -1,7 +1,0 @@
-<launch>
-  <node pkg="recog_pkg" type="" name="" />
-
-  <node pkg="recog_pkg" type="" name="" />
-
-
-</launch>

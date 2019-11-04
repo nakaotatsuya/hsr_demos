@@ -1,4 +1,7 @@
 <launch>
+  <!-- <node name="tf_bc" -->
+  <!--       pkg="recog_pkg" type="tf_bc.py" output="screen" /> -->
+  
   <node name="tf_broadcaster"
         pkg="recog_pkg" type="tf_broadcaster.py"
         output="screen">
@@ -11,4 +14,14 @@
         output="screen">
     <remap from="~output" to="/camera_3d_point"/>
   </node>
+
+  <node name="find_button_hand"
+        pkg="recog_pkg" type="find_button_hand.py" output="screen">
+    <remap from="~output" to="/hand_camera_2d_point" />
+  </node>
+
+  <!-- <node name="two2three_hand" -->
+  <!--       pkg="recog_pkg" type="two2three_hand.py" -->
+  <!--       output="screen" /> -->
+  
 </launch>
