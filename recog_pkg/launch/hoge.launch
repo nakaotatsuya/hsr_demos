@@ -1,11 +1,12 @@
 <launch>
   <!-- <node name="tf_bc" -->
   <!--       pkg="recog_pkg" type="tf_bc.py" output="screen" /> -->
+  <arg name="NAME" default="button1"/>
   
   <node name="tf_broadcaster"
         pkg="recog_pkg" type="tf_broadcaster.py"
         output="screen">
-    <param name="button" type="string" value="button1"/>
+    <param name="button" type="string" value="$(arg NAME)"/>
     <remap from="~input" to="/camera_3d_point" />
   </node>
 

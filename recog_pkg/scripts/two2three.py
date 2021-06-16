@@ -23,7 +23,7 @@ class Two2Three():
 
     def get_3d_point(self):
         self.sub_depth = message_filters.Subscriber("/head_rgbd_sensor_remote/depth_registered/image", Image, queue_size=1)
-        #self.sub_labelArray = message_filters.Subscriber("/qatm/output/labels", LabelArray, queue_size=1)
+        # self.sub_labelArray = message_filters.Subscriber("/qatm/output/labels", LabelArray, queue_size=1)
         self.sub_rectArray = message_filters.Subscriber("/qatm/output/rects", RectArray, queue_size=1)
         self.sub_camera_info = message_filters.Subscriber("/head_rgbd_sensor_remote/depth_registered/camera_info", CameraInfo, queue_size=1)
         queue_size = rospy.get_param("~queue_size", 100)
@@ -36,20 +36,20 @@ class Two2Three():
         #        self.subs, queue_size=queue_size)
         self.sync.registerCallback(self.cb)
 
-    def get_3d_point_hand(self):
-        self.sub_depth = message_filters.Subscriber("/hsrb/hand_camera/image_raw", Image, queue_size=1)
-        #self.sub_labelArray = message_filters.Subscriber("/qatm/output/labels", LabelArray, queue_size=1)
-        self.sub_rectArray = message_filters.Subscriber("/qatm2/output/rects", RectArray, queue_size=1)
-        self.sub_camera_info = message_filters.Subscriber("/hsrb/hand_camera/camera_info", CameraInfo, queue_size=1)
-        queue_size = rospy.get_param("~queue_size", 100)
-        self.subs = [self.sub_depth, self.sub_rectArray, self.sub_camera_info]
-        #if rospy.get_param("~approximate_sync", False):
-        slop = rospy.get_param("~slop", 0.1)
-        self.sync = message_filters.ApproximateTimeSynchronizer(self.subs, queue_size=queue_size, slop=slop)
-        #else:
-        #    self.sync = message_filters.TimeSynchronizer(
-        #        self.subs, queue_size=queue_size)
-        self.sync.registerCallback(self.cb)
+    # def get_3d_point_hand(self):
+    #     self.sub_depth = message_filters.Subscriber("/hsrb/hand_camera/image_raw", Image, queue_size=1)
+    #     #self.sub_labelArray = message_filters.Subscriber("/qatm/output/labels", LabelArray, queue_size=1)
+    #     self.sub_rectArray = message_filters.Subscriber("/qatm2/output/rects", RectArray, queue_size=1)
+    #     self.sub_camera_info = message_filters.Subscriber("/hsrb/hand_camera/camera_info", CameraInfo, queue_size=1)
+    #     queue_size = rospy.get_param("~queue_size", 100)
+    #     self.subs = [self.sub_depth, self.sub_rectArray, self.sub_camera_info]
+    #     #if rospy.get_param("~approximate_sync", False):
+    #     slop = rospy.get_param("~slop", 0.1)
+    #     self.sync = message_filters.ApproximateTimeSynchronizer(self.subs, queue_size=queue_size, slop=slop)
+    #     #else:
+    #     #    self.sync = message_filters.TimeSynchronizer(
+    #     #        self.subs, queue_size=queue_size)
+    #     self.sync.registerCallback(self.cb)
 
 
         #rospy.Subscriber("/head_rgbd_sensor_remote/depth_registered/image", Image, self.cb)
@@ -70,7 +70,13 @@ class Two2Three():
         cy = cameramsg.K[5]
         fx = cameramsg.K[0]
         fy = cameramsg.K[4]
-        
+
+        #print("labelmsg = ")
+        #print(labelmsg.labels[1].id)
+        #for i in range(len(labelmsg.labels)):
+        #    if labelmsg.labels[i].name=="faucet":
+        #        faucet_id = labelmsg.labels[i].id
+        #        print(faucet_id)
         rect_info = rectmsg.rects[0]
         u = rect_info.x
         v = rect_info.y

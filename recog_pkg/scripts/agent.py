@@ -23,20 +23,21 @@ from recog_pkg.msg import Camera3d
 import copy
 import tmc_eus_py
 from tmc_eus_py.coordinates import Coordinates
+from take_plastic_bottle import Action
 
-
-class Agent():
-    #example go_to_microwave, base_pose, microwave_solve_ik 
+class Agent(Action):
+    #example go_to_microwave, base_pose, microwave_solve_ik
     def __init__(self):
-        print("a")
-        self.robot = hsrb_interface.Robot()
-        print("b")
-        self.omni_base = self.robot.get('omni_base')
-        print("c")
-        self.whole_body = self.robot.get('whole_body')
-        print("d")
-        self.gripper = self.robot.get('gripper')
-        print("e")
+        super(Agent, self).__init__()
+        # print("a")
+        # self.robot = hsrb_interface.Robot()
+        # print("b")
+        # self.omni_base = self.robot.get('omni_base')
+        # print("c")
+        # self.whole_body = self.robot.get('whole_body')
+        # print("d")
+        # self.gripper = self.robot.get('gripper')
+        # print("e")
 
         #self.freq_list = []
         #self.freq_list_replace = []
@@ -53,12 +54,15 @@ class Agent():
 
 
     def kitchen_collision(self):
-        collision_world.add_box(x=0.5, y=1.0, z=0.8, pose=geometry.pose(x=3.8, y=0.0, z=0.4), frame_id="map")
+        collision_world.add_box(x=0.5, y=4.0, z=0.86, pose=geometry.pose(x=3.9, y=0.0, z=0.43), frame_id="map")
         #collision_world.remove_all()
         self.whole_body.collision_world = collision_world
 
+    def go_around(self):
+        self.omni_base.go_rel(yaw=2*math.pi)
+
     def go_to_kitchen(self):
-        kitchen_pose = geometry.Pose(pos=geometry.Vector3(x=3.11, y=1.21, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=-0.01023836327822357, w=0.9999475865851083))
+        kitchen_pose = geometry.Pose(pos=geometry.Vector3(x=3.10, y=1.07, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=-0.01023836327822357, w=0.9999475865851083))
         self.omni_base.go_pose(kitchen_pose)
 
     def go_to_yakan(self):
@@ -76,6 +80,10 @@ class Agent():
     def go_to_fridge(self):
         fridge_pose = geometry.Pose(pos=geometry.Vector3(x=0.1457817782465553, y=1.5697370723246589, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=0.7400625754780703, w=0.6725380170494195))
         self.omni_base.go_pose(fridge_pose)
+
+    def go_to_faucet(self):
+        faucet_pose=geometry.Pose(pos=geometry.Vector3(x=2.9367128325844694, y=1.1978975112876646, z=0.0), ori=geometry.Quaternion(x=0.0, y=0.0, z=-0.011383844813887545, w=0.9999352019392321))
+        self.omni_base.go_pose(faucet_pose)
 
     def base_pose(self, x=0.2):
         self.whole_body.move_to_neutral()
@@ -138,12 +146,14 @@ class Agent():
                 ref_frame_id=frame)
 
     def microwave_solve_ik(self):
+        self.whole_body.linear_weight = 100.0
+        self.whole_body.angular_weight = 100.0
         #self.base_pose(x=0.3)
-        microwave_point = self.get_bounding_box("red")
-        self.solve_ik(microwave_point, "front_horizontal", fl_vec=[-0.2,0.0,0.0])
-        self.whole_body.move_end_effector_pose(
-            geometry.pose(z=0.14), ref_frame_id="hand_palm_link")
-        self.gripper.apply_force(2.3)
+        #microwave_point = self.get_bounding_box("red")
+        #self.solve_ik(microwave_point, "front_horizontal", fl_vec=[-0.2,0.0,0.0])
+        #self.whole_body.move_end_effector_pose(geometry.pose(z=0.14), ref_frame_id="hand_palm_link")
+        self.whole_body.move_end_effector_pose(geometry.pose(z=-0.12), ref_frame_id="microwave")
+        self.gripper.apply_force(2.6)
         #self.whole_body.linear_weight = 100.0
         #self.whole_body.impedance_config = "compliance_hard"
         
@@ -177,6 +187,40 @@ class Agent():
         self.whole_body.move_to_joint_positions({"arm_lift_joint" : 0.25})
         self.whole_body.move_to_joint_positions({"head_tilt_joint": -0.5})
 
+    def find_microwave_pose(self):
+        self.whole_body.move_to_neutral()
+        self.whole_body.move_to_joint_positions({"arm_lift_joint" : 0.25})
+        self.whole_body.move_to_joint_positions({"head_tilt_joint": 0.1})
+
+    def find_fridge_pose(self):
+        self.base_pose()
+
+    def fridge_solve_ik(self):
+        self.whole_body.linear_weight=100.0
+        self.whole_body.angular_weight=100.0
+        self.whole_body.move_end_effector_pose(geometry.pose(z=-0.07, ek=-math.pi/2), ref_frame_id="fridge")
+        self.gripper.apply_force(2.5)
+        while 1:
+            try:
+                self.whole_body.move_end_effector_by_arc(geometry.pose(y=0.20, z=0.15, ej=math.radians(90.0)), math.radians(50.0), ref_frame_id="hand_palm_link")
+            except exceptions.MotionPlanningError:
+                pass
+            else:
+                break
+
+        self.gripper.command(1.0)
+        
+    def faucet_solve_ik(self):
+        #self.whole_body.move_to_joint_positions({"arm_lift_joint": 0.67})
+        self.whole_body.move_to_joint_positions({"wrist_flex_joint":0})
+        self.whole_body.linear_weight=100.0
+        self.whole_body.angular_weight=100.0
+        self.whole_body.move_end_effector_pose(geometry.pose(x=0.05, y=-0.2, z=-0.2), ref_frame_id="faucet")
+        self.whole_body.move_to_joint_positions({"arm_flex_joint": -1.45})
+        self.whole_body.move_to_joint_positions({"arm_flex_joint": 0})
+        self.omni_base.go_rel(x=-0.1)
+        self.whole_body.move_to_go()
+
     def stop_yakan_solve_ik(self):
         self.whole_body.linear_weight = 100.0
         self.whole_body.angular_weight = 100.0
@@ -201,7 +245,6 @@ class Agent():
         #else:
         #    print("cc")
 
-        
     def yakan_solve_ik(self):
         yakan_point = self.get_bounding_box("yellow")
         self.solve_ik(yakan_point, "front_horizontal", fl_vec=[-0.1, 0.0, 0.2])
@@ -446,10 +489,11 @@ def one_shot_subscribe(topic_name, mclass=None,
     oss.unsubscribe()
     return oss.msg
     
-# if __name__ == "__main__":
-#     rospy.init_node("bounding_box_array2")
-#     get_bounding_box()
-#     #msg = rospy.Subscriber("/HSI_color_filter/boxes_red", BoundingBoxArray, callback)
-#     #msg = one_shot_subscribe("/HSI_color_filter/boxes_red")
-#     #print(msg.boxes)
-#     rospy.spin()
+if __name__ == "__main__":
+    agent = Agent()
+    #rospy.init_node("bounding_box_array2")
+    #get_bounding_box()
+    #msg = rospy.Subscriber("/HSI_color_filter/boxes_red", BoundingBoxArray, callback)
+    #msg = one_shot_subscribe("/HSI_color_filter/boxes_red")
+    #print(msg.boxes)
+    #rospy.spin()
