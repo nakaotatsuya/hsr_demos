@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <arg name="INPUT_COLOR" value="/camera/rgb/image_rect_color" />
+  <arg name="INPUT_DEPTH" value="/camera/depth_registered/sw_registered/image_rect_raw" />
+  <arg name="INPUT_AUDIO" value="/audio" />
+  <arg name="CAMERA_INFO" value="/camera/rgb/camera_info" />
+  <arg name="SAVE_RAW_IMAGE" value="true" />
+  <arg name="SAVE_DIR" value="save_dir" />
+
+  <node name="camera_shot"
+        pkg="ave_eccv" type="camera_mic.py"
+        output="screen" respawn="true">
+    <rosparam subst_value="true">
+      input_color: $(arg INPUT_COLOR)
+      input_depth: $(arg INPUT_DEPTH)
+      input_audio: $(arg INPUT_AUDIO)
+      camera_info: $(arg CAMERA_INFO)
+      save_raw_img: $(arg SAVE_RAW_IMAGE)
+      save_dir: $(arg SAVE_DIR)
+    </rosparam>
+  </node>
+</launch>
