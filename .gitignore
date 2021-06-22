@@ -1,2 +1,7 @@
-./ave_eccv/save_dir/*
-./ave_eccv/test_save_dir/*
+*~
+/ave_eccv/*
+/ave_eccv/save_dir/*
+/ave_eccv/test_save_dir/sound_0.wav
+*.wav
+*.png
+*.jpg
