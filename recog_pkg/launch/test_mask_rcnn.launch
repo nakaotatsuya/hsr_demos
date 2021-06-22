@@ -1,0 +1,24 @@
+<launch>
+  <arg name="gui" default="true" />
+  <arg name="gpu" default="0" />
+  <arg name="INPUT_IMAGE" default="/hsrb/head_rgbd_sensor/rgb/image_rect_color" />
+
+  <node name="mask_rcnn_73b2_kitchen"
+        pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py" output="screen"
+        clear_params="true">
+    <remap from="~input" to="$(arg INPUT_IMAGE)" />
+    <rosparam command="load"
+              file="/home/nakaotatsuya/train_data/20210606-011855/fg_class_names.yaml" />
+    <rosparam subst_value="true">
+      gpu: $(arg gpu)
+      pretrained_model: /home/nakaotatsuya/train_data/20210606-011855/snapshot_model.npz
+    </rosparam>
+  </node>
+  <!-- <group if="$(arg gui)"> -->
+  <!--   <node name="image_view" -->
+  <!--         pkg="image_view" type="image_view" -->
+  <!--         clear_params="true"> -->
+  <!--     <remap from="image" to="mask_rcnn_73b2_kitchen/output/viz" /> -->
+  <!--   </node> -->
+  <!-- </group> -->
+</launch>
