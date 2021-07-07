@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
   <!-- <arg name="INPUT_AUDIO" default="/tamago1/audio" /> -->
-  <arg name="save_dir" default="test_save_dir" />
+  <arg name="save_dir" default="test2_save_dir" />
   <!-- <arg name="ns" default="tamago1" /> -->
   <!-- <arg name="IN_SOUND" default="/sound_detector_volume/in_sound" /> -->
+  <arg name="audio_topic" default="/audio" />
 
   <node name="mic_8"
         pkg="ave_eccv" type="mic_8.py"
@@ -19,4 +20,13 @@
         output="screen" respawn="true">
     <remap from="~in_sound" to="/sound_detector_volume/in_sound" />
   </node>
+
+  <include file="$(find sound_classification)/launch/detect_sound.launch">
+    <arg name="use_rosbag" value="false" />
+    <arg name="filename" value="/" />
+    <arg name="use_microphone" value="true" />
+    <arg name="gui" value="true"/>
+    <arg name="threshold" value="0.5"/>
+    <arg name="audio_topic" value="$(arg audio_topic)" />
+  </include>
 </launch>

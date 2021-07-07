@@ -1,0 +1,12 @@
+<launch>
+  <include file="$(find sound_classification)/launch/classify_sound.launch" >
+    <arg name="audio_topic" value="/tamago1/audio" />
+  </include>
+
+  <include file="$(find jsk_perception)/sample/people_pose_estimation_2d.launch" >
+    <arg name="gui" value="false" />
+    <arg name="GPU" value="0" />
+  </include>
+
+  <include file="$(find hark_sound_source_localization)/launch/two_mic2.launch" />
+</launch>
