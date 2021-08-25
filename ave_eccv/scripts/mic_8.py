@@ -76,7 +76,7 @@ class MicSave():
         data8 = data16.reshape(-1,8)
         self.a_lis = np.append(self.a_lis, data8, axis=0)
         self.a_lis = self.a_lis[-80000:]
-        #print(self.a_lis.shape)
+        #print(self.a_lis.shape) #(80000,8)
 
     # def subscribe_in_sound(self):
     #     self.sub_in_sound = rospy.Subscriber(self.in_sound, InSound, self.callback_in_sound, queue_size=1)
