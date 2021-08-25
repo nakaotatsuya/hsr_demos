@@ -1,7 +1,9 @@
 <launch>
-  <include file="$(find sound_classification)/launch/classify_sound.launch" >
-    <arg name="audio_topic" value="/tamago1/audio" />
-  </include>
+  <arg name="2d" default="false" />
+  <!-- <include file="$(find sound_classification)/launch/classify_sound.launch" > -->
+  <!--   <arg name="audio_topic" value="/tamago1/audio" /> -->
+  <!--   <arg name="gui" value="false" /> -->
+  <!-- </include> -->
 
   <include file="$(find jsk_perception)/sample/people_pose_estimation_2d.launch" >
     <arg name="gui" value="false" />
@@ -9,4 +11,9 @@
   </include>
 
   <include file="$(find hark_sound_source_localization)/launch/two_mic2.launch" />
+
+  <group if="$(arg 2d)" >
+    <include file="$(find hark_sound_source_localization)/launch/visualize2.launch" />
+  </group>
+
 </launch>

@@ -8,10 +8,10 @@
         clear_params="true">
     <remap from="~input" to="$(arg INPUT_IMAGE)" />
     <rosparam command="load"
-              file="/home/nakaotatsuya/train_data/20210606-011855/fg_class_names.yaml" />
+              file="/home/nakaotatsuya/train_data/20210812-215342/fg_class_names.yaml" />
     <rosparam subst_value="true">
       gpu: $(arg gpu)
-      pretrained_model: /home/nakaotatsuya/train_data/20210606-011855/snapshot_model.npz
+      pretrained_model: /home/nakaotatsuya/train_data/20210812-215342/snapshot_model.npz
     </rosparam>
   </node>
   <!-- <group if="$(arg gui)"> -->
