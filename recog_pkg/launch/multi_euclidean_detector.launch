@@ -1,0 +1,60 @@
+<launch>
+  <arg name="gpu" default="0"/>
+  <arg name="downsample" default="true"/>
+  <arg name="input_cloud" default="/remote/head_rgbd_sensor/depth_registered/points" />
+  <arg name="input_image" default="/remote/head_rgbd_sensor/rgb/image_rect_color" />
+
+  <!-- <group ns="remote" > -->
+  <!--   <include file="$(find jsk_hsr_startup)/launch/republish_images.launch" > -->
+  <!--     <arg name="use_throttled_image" value="true" /> -->
+  <!--     <arg name="camera" value="head_rgbd_sensor" /> -->
+  <!--   </include> -->
+  <!-- </group> -->
+
+  <node name="mask_rcnn_instance_segmentation"
+        pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
+        clear_params="true">
+    <remap from="~input" to="$(arg input_image)" />
+    <rosparam command="load"
+              file="$(find jsk_perception)/trained_data/mask_rcnn_resnet50_73B2_kitchen_20190619_classnames.yaml" />
+    <rosparam subst_value="true">
+      gpu: $(arg gpu)
+      pretrained_model: $(find jsk_perception)/trained_data/mask_rcnn_resnet50_73B2_kitchen_20190619.npz
+    </rosparam>
+  </node>
+
+  <node name="multi_euclidean_clustering"
+        pkg="nodelet" type="nodelet"
+        args="standalone jsk_pcl/EuclideanClustering"
+        output="screen"
+        respawn="true" >
+    <remap from="~input/cluster_indices" to="/mask_rcnn_instance_segmentation/output/cluster_indices" />
+    <remap from="~input" to="$(arg input_cloud)" />
+    <rosparam subst_value="true">
+      tolerance: 0.02
+      min_size: 0
+      max_size: 10000
+      approximate_sync: true
+      downsample_enable: $(arg downsample)
+      multi: true
+      queue_size: 100
+      cluster_filter: 1
+    </rosparam>
+  </node>
+
+  <node name="multi_euclidean_cluster_point_indices_decomposer"
+        pkg="nodelet" type="nodelet"
+        args="standalone jsk_pcl/ClusterPointIndicesDecomposer">
+    <remap from="~input" to="$(arg input_cloud)" />
+    <remap from="~target" to="/multi_euclidean_clustering/output" />
+    <rosparam>
+      align_boxes: true
+      align_boxes_with_plane: false
+      use_pca: true
+      approximate_sync: false
+      queue_size: 100
+      target_frame_id: base_footprint
+    </rosparam>
+  </node>
+
+</launch>
