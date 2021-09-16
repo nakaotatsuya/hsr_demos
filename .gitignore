@@ -1,6 +1,8 @@
 *~
 /ave_eccv/save_dir/
 /ave_eccv/test_save_dir/
+/ave_eccv/test/
 *.wav
 *.png
 *.jpg
+/action_pkg/sound_pos_data/

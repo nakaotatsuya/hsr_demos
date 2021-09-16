@@ -44,7 +44,7 @@ class MicSave():
         if not os.path.exists(self.save_dir):
             os.mkdir(self.save_dir)
         #self.data8 = None
-        self.a_lis = np.empty((0,8))
+        self.a_lis = np.array([], dtype="int16")
         self.count = 0
         self.service()
         self.callback_lock=False
@@ -66,17 +66,15 @@ class MicSave():
     #     sub_audio = rospy.Subscriber(self.input_audio, AudioData, self.callback_audio, queue_size=1000, buff_size=2**24)
 
     def callback_audio(self, msg):
-        #print("in callback")
-        #if self.callback_lock:
-        #    return
         data = msg.data
         data16 = np.frombuffer(data, dtype="int16")
         data16 = np.array(data16)
-        #data16 = np.where(data16 > 0, data16/(2.0**31 -1), data16/(2.0**31))
-        data8 = data16.reshape(-1,8)
-        self.a_lis = np.append(self.a_lis, data8, axis=0)
-        self.a_lis = self.a_lis[-80000:]
-        #print(self.a_lis.shape) #(80000,8)
+        #print(data16)
+        #data8 = data16.reshape(-1,8)
+        self.a_lis = np.append(self.a_lis, data16)
+        self.a_lis = self.a_lis[-80000*8:]
+
+        self.reshaped_buffer = self.a_lis.reshape(-1,8).T
 
     # def subscribe_in_sound(self):
     #     self.sub_in_sound = rospy.Subscriber(self.in_sound, InSound, self.callback_in_sound, queue_size=1)
@@ -101,7 +99,7 @@ class MicSave():
         try:
             start = time.time()
             for i in range(8):
-                wavio.write(os.path.join(self.save_dir, "sound_{}.wav".format(i)), self.a_lis.T[i], 16000, sampwidth=3)
+                wavio.write(os.path.join(self.save_dir, "sound_{}.wav".format(i)), self.reshaped_buffer[i], 16000, sampwidth=3)
 
             self.ilrma()
             el_time = time.time() - start
@@ -114,7 +112,8 @@ class MicSave():
 
     def ilrma(self):
         pca = PCA(n_components=2, whiten=True)
-        H = pca.fit_transform(self.a_lis)
+        H = pca.fit_transform(self.reshaped_buffer.T)
+        print(H.shape)
         n = 0.3*16000
         i = 1
         while(i*2 <= n):
@@ -125,15 +124,18 @@ class MicSave():
             _,_,Z = sig.stft(H[:,i], nperseg = seg)
             stft_list.append(Z.T)
         f_data = np.stack(stft_list, axis=2)
-        Array = pr.bss.ilrma(f_data, n_src=None, n_iter=100, proj_back=False, W0=None, n_components=2, return_filters=False, callback=None)
+        print(f_data.shape)
+        Array, W_matrix = pr.bss.ilrma(f_data, n_src=None, n_iter=100, proj_back=False, W0=None, n_components=2, return_filters=True, callback=None)
+        print("W:", W_matrix)
+        print(W_matrix.shape)
         sep = []
         for i in range(2):
             x = sig.istft(Array[:,:,-(i+1)].T, nperseg = seg)
             sep.append(x[1])
-        #print(sep[0])
-        #print(sep[1])
-        wavio.write(os.path.join(self.save_dir, "separate_0.wav"), (sep[0]*100).astype(np.int16), 16000, sampwidth=3)
-        wavio.write(os.path.join(self.save_dir, "separate_1.wav"), (sep[1]*100).astype(np.int16), 16000, sampwidth=3)
+        wavio.write(os.path.join(self.save_dir, "separate_0.wav"), (sep[0]).astype(np.int16), 16000, sampwidth=3)
+        #print(sep[0].astype(np.int16).shape)
+        wavio.write(os.path.join(self.save_dir, "separate_1.wav"), (sep[1]).astype(np.int16), 16000, sampwidth=3)
+        #print(sep[1].astype(np.int16).shape)
 
     def run(self):
         try:
