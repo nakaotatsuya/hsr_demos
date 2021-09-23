@@ -30,7 +30,6 @@ from sound_classification.msg import InSound
 from jsk_hsr_startup.robot_action import RobotAction
 from jsk_hsr_startup.spot_mixin import SpotMixin
 from jsk_hsr_startup.tmc_speak import speak_jp
-from my_robot import MyRobot
 
 from geometry_msgs.msg import PointStamped, Point, Quaternion
 
@@ -42,20 +41,20 @@ from geometry_msgs.msg import PointStamped, Point, Quaternion
 # 次に、死角などで見えない場所にあるとき、棚をあけるなど。 音は聞こえているけど、ものが見えないとき。
 # 「鍵を探して」→人間がスマホから音を鳴らす→ロボットが音がなっているところにいく。 なんかおかしい。。
 
-class Find(MyRobot):
+class Find(RobotAction, SpotMixin):
     def __init__(self, name, **kwargs):
         super(Find, self).__init__(name, **kwargs)
         #RobotAction.__init__(self, "test")
-        #self.move_base = actionlib.SimpleActionClient(
-        #    '/move_base/move', MoveBaseAction)
-        #self.move_base.wait_for_server()
+        self.move_base = actionlib.SimpleActionClient(
+            '/move_base/move', MoveBaseAction)
+        self.move_base.wait_for_server()
         self.whole_body = self.robot.get("whole_body")
         self.omni_base = self.robot.get('omni_base')
         self.base_link_point = None
         self.camera_point = None
 
-        #self.listener = tf.TransformListener()
-        #self.br = tf.TransformBroadcaster()
+        self.listener = tf.TransformListener()
+        self.br = tf.TransformBroadcaster()
 
         self.base_link_azimuth = 0.0
         self.base_link_elevation = 0.0
@@ -63,7 +62,7 @@ class Find(MyRobot):
         #async param
         self.use_async = rospy.get_param("~approximate_sync", True)
         self.queue_size = rospy.get_param("~queue_size", 10)
-        self.slop = rospy.get_param("~slop", 0.2)
+        self.slop = rospy.get_param("~slop", 0.1)
         #self.subscribe_sound()
 
     def subscribe_box(self):
@@ -118,24 +117,74 @@ class Find(MyRobot):
         #self.camera_point はhead_rgbd_sensor_rgb_cameraから見た音源位置
         self.camera_point = PointStamped()
         
-        if len(max_point)!=0 and ins_msg.in_sound:
+        if max_point and ins_msg.in_sound:
             #base_link
             self.base_link_point.header.frame_id = "base_link"
-            base_link_to_mic_coords = self.get_a_to_b("base_link", "tamago1")
+            base_link_to_mic_coords = self.get_base_link_to_mic()
             self.base_link_point.point.x, self.base_link_point.point.y, self.base_link_point.point.z = base_link_to_mic_coords.transform_vector(max_point)
             self.base_link_azimuth, self.base_link_elevation = self.point_to_dir(self.base_link_point)
             print(self.base_link_point.point.x, self.base_link_point.point.y, self.base_link_point.point.z, self.base_link_azimuth, self.base_link_elevation)
 
             #camera
             self.camera_point.header.frame_id = "head_rgbd_sensor_rgb_frame"
-            #camera_to_mic_coords = self.get_camera_to_mic()
-            camera_to_mic_coords = self.get_a_to_b("head_rgbd_sensor_rgb_frame", "tamago1")
+            camera_to_mic_coords = self.get_camera_to_mic()
             self.camera_point.point.x, self.camera_point.point.y, self.camera_point.point.z = camera_to_mic_coords.transform_vector(max_point)
             self.camera_azimuth, self.camera_elevation = self.point_to_dir(self.camera_point)
 
         else:
             self.base_link_point = None
             self.camera_point = None
+
+    def dir_to_point(self, direction):
+        #direction's type is supposed to be hark_msgs/HarkSource."
+        azimuth = np.radians(direction.azimuth)
+        elevation = np.radians(direction.elevation)
+        x = np.cos(elevation) * np.cos(azimuth)
+        y = np.cos(elevation) * np.sin(azimuth)
+        z = np.sin(elevation)
+        point = [x,y,z]
+        return point, azimuth, elevation
+
+    def point_to_dir(self, point):
+        #point's type is supposed to be geometry_msgs/PointStamped
+        azimuth = np.arctan(point.point.y / point.point.x)
+        if point.point.x < 0.0:
+            azimuth += np.pi
+        elevation = np.arctan(
+            point.point.z / np.sqrt(point.point.x ** 2 + point.point.y ** 2))
+        return azimuth, elevation
+
+    def get_base_link_to_mic(self):
+        import skrobot
+        succeed = False
+        while not succeed:
+            try:
+                trans, rot = self.listener.lookupTransform(
+                    "base_link", "tamago1",
+                    rospy.Time(0))
+                succeed = True
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+        print("get base_link to mic")
+        c = skrobot.coordinates.Coordinates(
+            pos=trans, rot=skrobot.coordinates.math.xyzw2wxyz(rot))
+        return c
+
+    def get_camera_to_mic(self):
+        import skrobot
+        succeed = False
+        while not succeed:
+            try:
+                trans, rot = self.listener.lookupTransform(
+                    "head_rgbd_sensor_rgb_frame", "tamago1",
+                    rospy.Time(0))
+                succeed = True
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+        print("get camera to mic")
+        c = skrobot.coordinates.Coordinates(
+            pos=trans, rot=skrobot.coordinates.math.xyzw2wxyz(rot))
+        return c
 
     def move_to_sound_source(self, wait=True):
         self.whole_body.move_to_neutral()
@@ -147,14 +196,14 @@ class Find(MyRobot):
         rate = rospy.Rate(10)
         start_time = rospy.Time.now()
         print("start")
-        while (self.base_link_point == None) or (self.base_link_azimuth == 0.0):
+        while (self.base_link_point == None):
             rate.sleep()
             if (rospy.Time.now() - start_time).to_sec() > 10.0:
                 print("I couldn't hear any sound.")
                 return True
         self.unsubscribe_sound()
         #########################
-        
+
         pose = PoseStamped()
         pose.header.stamp = rospy.Time.now()
         pose.header.frame_id ="base_link"
@@ -162,11 +211,13 @@ class Find(MyRobot):
         quat = tf.transformations.quaternion_from_euler(0, 0, self.base_link_azimuth)
         pose.pose.orientation = Quaternion(*quat)
         print(pose)
+        print(self.base_link_point.point.x, self.base_link_point.point.y, self.base_link_point.point.z)
 
         goal = MoveBaseGoal()
         goal.target_pose = pose
         self.move_base.send_goal(goal)
         if wait is True:
+            print("aaaaaaaaaaaaaa")
             self.move_base.wait_for_result()
             action_state = self.move_base.get_state()
             if action_state != GoalStatus.SUCCEEDED:
@@ -174,12 +225,12 @@ class Find(MyRobot):
                 rospy.loginfo('failed move_base: {}'.format(
                     self.move_base.get_result()))
                 rospy.loginfo("I couldn't move.")
+                #speak_jp('目的地に移動できませんでした。')
                 return False
             return True
-
-        print(self.base_link_point.point.x, self.base_link_point.point.y, self.base_link_point.point.z)
         #gaze_pose = geometry.vector3(self.base_link_point.point.x, self.base_link_point.point.y, self.base_link_point.point.z)
         #self.whole_body.gaze_point(point=gaze_pose, ref_frame_id="base_link")
+        
         return self.move_base
 
     def look_for_objects(self):
@@ -245,9 +296,32 @@ class Find(MyRobot):
                 idx = i
         print("target boxes is {}".format(self.target_boxes[idx]))
 
+    def move_to(self, spot_name, wait=True):
+        pose_stamped = self.lookup_spot(spot_name)
+        if pose_stamped.header.frame_id == "":
+            rospy.loginfo("I don't know the spot name.")
+            return
+        pose_stamped.header.stamp = rospy.Time.now()
+        pose_stamped.header.frame_id = "map"
+        pose_stamped.pose.position.z = 0.0
+
+        goal = MoveBaseGoal()
+        goal.target_pose = pose_stamped
+        self.move_base.send_goal(goal)
+        if wait is True:
+            self.move_base.wait_for_result()
+            action_state = self.move_base.get_state()
+            if action_state != GoalStatus.SUCCEEDED:
+                rospy.loginfo("failed move_base: {}".format(action_state))
+                rospy.loginfo("failed move_base: {}".format(
+                    self.move_base.get_result()))
+                return False
+            return True
+        return self.move_base
+
 if __name__=="__main__":
     rospy.init_node("find")
     find = Find("a")
-    #find.move_to_sound_source()
-    find.look_for_objects()
+    find.move_to_sound_source()
+    #find.look_for_objects()
     rospy.spin()
