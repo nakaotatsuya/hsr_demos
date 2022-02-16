@@ -1,0 +1,8 @@
+<launch>
+  <include file="$(find neatness_estimator)/launch/my_mask_rcnn_clustering_fridge.launch" />
+  <include file="$(find neatness_estimator)/launch/my_mask_rcnn_clustering.launch" />
+  <include file="$(find sound_segmentation)/launch/online3.launch" >
+    <arg name="target_class" value="testtest" />
+  </include>
+
+</launch>

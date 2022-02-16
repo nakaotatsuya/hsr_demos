@@ -1,8 +1,9 @@
 <launch>
   <arg name="gpu" default="0"/>
-  <arg name="downsample" default="true"/>
+  <arg name="downsample" default="false"/>
   <arg name="input_cloud" default="/remote/head_rgbd_sensor/depth_registered/points" />
   <arg name="input_image" default="/remote/head_rgbd_sensor/rgb/image_rect_color" />
+  <arg name="input_info" default="/remote/head_rgbd_sensor/rgb/camera_info" />
 
   <!-- <group ns="remote" > -->
   <!--   <include file="$(find jsk_hsr_startup)/launch/republish_images.launch" > -->
@@ -11,16 +12,30 @@
   <!--   </include> -->
   <!-- </group> -->
 
+  <node name="button" pkg="tf2_ros" type="static_transform_publisher"
+        args="8.267, -14.847, 0.879 -3.141, -1.542, 0.076 map button" />
+  <include file="$(find qatm_ros)/launch/qatm.launch" />
+  
   <node name="mask_rcnn_instance_segmentation"
         pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
         clear_params="true">
     <remap from="~input" to="$(arg input_image)" />
+    <!-- <rosparam command="load" -->
+    <!--           file="$(find jsk_perception)/trained_data/mask_rcnn_resnet50_73B2_kitchen_20190619_classnames.yaml" /> -->
     <rosparam command="load"
-              file="$(find jsk_perception)/trained_data/mask_rcnn_resnet50_73B2_kitchen_20190619_classnames.yaml" />
+              file="/home/nakaotatsuya/train_data/20211224-153632/fg_class_names.yaml" />
     <rosparam subst_value="true">
       gpu: $(arg gpu)
-      pretrained_model: $(find jsk_perception)/trained_data/mask_rcnn_resnet50_73B2_kitchen_20190619.npz
+      <!-- pretrained_model: $(find jsk_perception)/trained_data/mask_rcnn_resnet50_73B2_kitchen_20190619.npz -->
+      pretrained_model: /home/nakaotatsuya/train_data/20211224-153632/snapshot_model.npz
     </rosparam>
+    
+    <!-- <rosparam command="load" -->
+    <!--           file="/home/nakaotatsuya/train_data/20210719-204332/fg_class_names.yaml" /> -->
+    <!-- <rosparam subst_value="true"> -->
+    <!--   gpu: $(arg gpu) -->
+    <!--   pretrained_model: /home/nakaotatsuya/train_data/20210719-204332/snapshot_model.npz -->
+    <!-- </rosparam> -->
   </node>
 
   <node name="multi_euclidean_clustering"
@@ -32,7 +47,7 @@
     <remap from="~input" to="$(arg input_cloud)" />
     <rosparam subst_value="true">
       tolerance: 0.02
-      min_size: 10
+      min_size: 15
       max_size: 10000
       approximate_sync: true
       downsample_enable: $(arg downsample)
@@ -59,4 +74,32 @@
     </rosparam>
   </node>
 
+  <!-- <node name="bounding_rect_mask_image" -->
+  <!--       pkg="jsk_perception" type="bounding_rect_mask_image"> -->
+  <!--   <remap from="~input" to="/multi_euclidean_cluster_point_indices_decomposer/mask" /> -->
+  <!-- </node> -->
+
+  <!-- <node name="bbox_to_rect" -->
+  <!--       pkg="nodelet" type="nodelet" -->
+  <!--       args="load jsk_perception/BoundingBoxToRect sample_manager"> -->
+  <!--   <remap from="~input" to="/multi_euclidean_cluster_point_indices_decomposer/boxes"/> -->
+
+  <!--   <remap from="~input/info" to="$(arg input_info)"/> -->
+  <!--   <rosparam> -->
+  <!--     approximate_sync: true -->
+  <!--   </rosparam> -->
+  <!-- </node> -->
+
+  <!-- <node name="rect_array_to_image_marker" -->
+  <!--       pkg="jsk_perception" type="rect_array_to_image_marker.py"> -->
+  <!--   <remap from="~input" to="/bbox_to_rect/output" /> -->
+  <!-- </node> -->
+
+  <!-- <node name="vis_image_with_rect" -->
+  <!--       pkg="image_view2" -->
+  <!--       type="image_view2"> -->
+  <!--   <remap from="image" to="$(arg input_image)" /> -->
+  <!--   <remap from="camera_info" to="$(arg input_info)"/> -->
+  <!--   <remap from="image_marker" to="rect_array_to_image_marker/output"/> -->
+  <!-- </node> -->
 </launch>

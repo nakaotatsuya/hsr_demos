@@ -3,7 +3,7 @@
   <arg name="input_cloud" default="/remote/head_rgbd_sensor/depth_registered/points" />
 
   <include file="$(find recog_pkg)/launch/sample_organized_multi_plane_segmentation.launch">
-    <arg name="gui" value="false"/>
+    <arg name="gui" value="true"/>
     <arg name="input_cloud" value="$(arg input_cloud)"/>
   </include>
 
@@ -17,7 +17,7 @@
     <rosparam>
       use_indices: true
       use_coefficients: true
-      min_height: 0.02
+      min_height: 0.04
       max_height: 0.5
     </rosparam>
   </node>
