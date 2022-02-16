@@ -26,7 +26,7 @@ def calculate_min_distance():
     rospack = rospkg.RosPack()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-l", "--label", type=str, default="microwave")
+    parser.add_argument("-l", "--label", type=str, default="test")
     args = parser.parse_args()
 
     save_dir = osp.join(rospack.get_path(
@@ -72,6 +72,7 @@ def calculate_min_distance():
         #print("dpq2_dt = {}".format(dpq2_dt))
 
         ans = sympy.solve([dpq2_ds, dpq2_dt])
+        print(s, t)
         s, t = ans[s], ans[t]
 
         x1 ,y1, z1 = p[0] + s*v[0], p[1] + s*v[1], p[2] + s*v[2]

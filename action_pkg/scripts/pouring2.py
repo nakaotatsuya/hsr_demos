@@ -22,7 +22,7 @@ import hsrb_interface
 from hsrb_interface import geometry
 from speech_recognition_msgs.msg import SpeechRecognitionCandidates
 
-from jsk_recognition_msgs.msg import LabelArray, BoundingBoxArray, ClassificationResult, PeoplePoseArray
+from jsk_recognition_msgs.msg import LabelArray, BoundingBoxArray, ClassificationResult, PeoplePoseArray, Accuracy
 from hark_msgs.msg import HarkSource
 
 from jsk_hsr_startup.robot_action import RobotAction
@@ -48,14 +48,16 @@ class Pouring(MyRobot):
         print("init")
 
     def subscribe(self):
-        self.sound_class = rospy.Subscriber("/sound_classifier/output", ClassificationResult, self._callback, queue_size=1)
+        #self.sound_class = rospy.Subscriber("/sound_classifier/output", ClassificationResult, self._callback, queue_size=1)
+        self.sound_class = rospy.Subscriber("/sound_classifier/output/criteria", Accuracy, self._callback, queue_size=1)
 
     def unsubscribe(self):
         self.sound_class.unregister()
 
     def _callback(self, msg):
         #print(msg.label_names)
-        self.sound_flow = np.append(self.sound_flow, msg.label_names[0])
+        #self.sound_flow = np.append(self.sound_flow, msg.label_names[0])
+        self.sound_flow = np.append(self.sound_flow, msg.accuracy)
         self.sound_flow = self.sound_flow[-self.sound_flow_len:]
         #print(self.sound_flow)
         #print(len(self.sound_flow))
@@ -85,15 +87,15 @@ class Pouring(MyRobot):
                 #print("a")
                 while not rospy.is_shutdown():
                     rate.sleep()
-                    if all([x == "no_sound\n" for x in self.sound_flow[0:30]]) and len(self.sound_flow)==self.sound_flow_len:
-                        roll += 0.006
+                    if all([(x >= 0.35)  for x in self.sound_flow[0:30]]) and len(self.sound_flow)==self.sound_flow_len:
+                        roll += 0.01
                         print("aaaa")
                         self.pour(roll)
-                    if all([x == "bottom\n" for x in self.sound_flow[0:30]]) and len(self.sound_flow)==self.sound_flow_len:
+                    if all([(x <= 0.10) for x in self.sound_flow[0:30]]) and len(self.sound_flow)==self.sound_flow_len:
                         roll += 0.0015
                         self.pour(roll)
                     #    self.pour_little()
-                    if all([x == "middle\n"  for x in self.sound_flow[0:9]]) and len(self.sound_flow)==self.sound_flow_len:
+                    if all([((x > 0.10) and (x < 0.30)) for x in self.sound_flow[0:9]]) and len(self.sound_flow)==self.sound_flow_len:
                         self.whole_body.move_to_joint_positions({"wrist_roll_joint": 0})
                         break
                         return True
