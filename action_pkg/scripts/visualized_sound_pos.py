@@ -11,7 +11,7 @@ import tf.transformations
 from os import makedirs, listdir
 from os import path as osp
 
-from tmc_eus_py.coordinates import Coordinates
+#from tmc_eus_py.coordinates import Coordinates
 from visualization_msgs.msg import Marker
 from hark_msgs.msg import HarkSource
 from sound_classification.msg import InSound
@@ -33,14 +33,15 @@ from sklearn import datasets
 
 import argparse
 
-
 class VisualizedSoundPos():
     def __init__(self):
         rospack = rospkg.RosPack()
 
         parser = argparse.ArgumentParser()
         #parser.add_argument("-l", "--label", type=str, default="microwave")
-        parser.add_argument("-l", "--labels", type=list, default=["microwave", "fridge", "door", "kettle", "dish", "bottle"])
+        parser.add_argument("-l", "--labels", type=list, default=["microwave", "fridge", "door", "kettle", "dish", "bottle", "key"])
+        #parser.add_argument("-l", "--labels", type=list, default=["bottle"])
+        parser.add_argument("-g", "--gauss", type=bool, default=False)
         args = parser.parse_args()
 
         labels = args.labels
@@ -50,6 +51,13 @@ class VisualizedSoundPos():
             c = np.random.rand(3)
             colors.append(c)
 
+        colors = np.array([[0.0, 0.0, 0.0],
+                           [0.0, 0.0, 1.0],
+                           [0.0, 1.0, 1.0],
+                           [1.0, 1.0, 1.0],
+                           [1.0, 0.0, 0.0],
+                           [1.0, 1.0, 0.0],
+                           [0.0, 1.0, 0.0]])
         #pub_msg
         pub_msg = Marker()
         pub_msg.header.stamp = rospy.Time.now()
@@ -67,55 +75,113 @@ class VisualizedSoundPos():
             pub_msg.scale.z = 0.1
 
             for i in range(center.shape[0]):
-                pub_msg.points.append(Point(x = center[i][0], y=center[i][1], z=center[i][2]))
-                pub_msg.colors.append(ColorRGBA(r = c[0], g=c[1], b=c[2], a=1.0))
+                if center[i][2] > 0.0:
+                    pub_msg.points.append(Point(x = center[i][0], y=center[i][1], z=center[i][2]))
+                    pub_msg.colors.append(ColorRGBA(r = c[0], g=c[1], b=c[2], a=1.0))
         pub = rospy.Publisher("~output", Marker, queue_size=1)
 
         #pub_gauss_msg
-        print("aaaaaaaaa")
-        load_file = np.load(osp.join(rospack.get_path("action_pkg"), "sound_pos_data", "door", "center.npy"), allow_pickle=True)
-        print(load_file.shape)
-        cvtype, component = self.calculate_BIC(load_file)
-        means, covars, weights = self.best_BIC_GMM(load_file, cvtype, component)
-        print(means, covars, weights)
-        
-        self.HEADER = Header()
-        self.HEADER.stamp = rospy.Time.now()
-        self.HEADER.frame_id = "map"
-        self.FIELDS =[
-            PointField(name="x", offset=0, datatype=7, count=1),
-            PointField(name="y", offset=4, datatype=7, count=1),
-            PointField(name="z", offset=8, datatype=7, count=1),
-            #PointField(name="pfh", offset=12, datatype=PointField.FLOAT32, count=1),
-        ]
-        POINTS = []
-        x = np.arange(-1, 9, 0.05)
-        y = np.arange(-20,-10, 0.05)
-        X, Y = np.meshgrid(x,y)
-        print(X)
-        z = np.c_[X.ravel(), Y.ravel()]
+        if args.gauss:
+            print("aaaaaaaaa")
+            #labels = ["key", "microwave", "fridge", "kettle", "dish", "door", "bottle"]
+            labels = ["fridge"]
+            self.HEADER = Header()
+            self.HEADER.stamp = rospy.Time.now()
+            self.HEADER.frame_id = "map"
+            
+            POINTS = []
+            x = np.arange(-1, 9, 0.05)
+            y = np.arange(-20,-10, 0.05)
+            X, Y = np.meshgrid(x,y)
+            #print(X)
+            z = np.c_[X.ravel(), Y.ravel()]
+            #print(z.shape)
 
-        #Z = np.array([])
-        for i in range(len(weights)):
-            if i == 0:
-                Z = weights[0] * self.gaussian(z, means[0], covars[0])
-            else:
-                Z += weights[i] * self.gaussian(z, means[i], covars[i])
-        Z = Z.reshape(X.shape)
-        X = X.flatten()
-        Y = Y.flatten()
-        Z = Z.flatten()
-        print(Z.shape)
-        g = np.vstack((X, Y, Z)).T
-        POINTS.extend(g.tolist())
-        print("point", len(POINTS))
-        
-        pub_gauss_msg = pc2.create_cloud(self.HEADER, self.FIELDS, POINTS)
-        pub_gauss = rospy.Publisher("~output_gauss", PointCloud2, queue_size=1)
+            pub_gauss_max_msgs = []
+            pub_gauss_maxs = []
+            for j, label in enumerate(labels):
+                load_file = np.load(osp.join(rospack.get_path("action_pkg"), "sound_pos_data", label, "center.npy"), allow_pickle=True)
+                print(load_file.shape)
+                cvtype, component = self.calculate_BIC(load_file)
+                means, covars, weights, means_3d, covars_3d = self.best_BIC_GMM(load_file, cvtype, component)
+                np.save(osp.join(rospack.get_path("action_pkg"), "gauss_data", label, "weights.npy"), np.array(weights))
+                np.save(osp.join(rospack.get_path("action_pkg"), "gauss_data", label, "means_3d.npy"), np.array(means_3d))
+                np.save(osp.join(rospack.get_path("action_pkg"), "gauss_data", label, "covars_3d.npy"), np.array(covars_3d))
+                #print(means)
+                #print(covars)
+                #print(weights)
+                for i in range(len(weights)):
+                    if i == 0:
+                        Z = weights[0] * self.gaussian(z, means[0], covars[0])
+                    else:
+                        Z += weights[i] * self.gaussian(z, means[i], covars[i])
+                Z = Z.reshape(X.shape)
+                X = X.flatten()
+                Y = Y.flatten()
+                Z = Z.flatten()
+                #print(Z.shape)
+                g = np.vstack((X, Y, Z)).T
+                cos = [0xff0000, 0x00ff00, 0xffff00, 0xff00ff, 0xf0ffff, 0x0000ff, 0x00ffff]
+                co = np.array([cos[j]] * 40000)
+                #print(co.shape)
+                #print(g.shape)
+                g = np.vstack((g.T, co.T)).T
+                #print(g.shape)
+                g_sort = g[np.argsort(g[:, 2])[::-1]]
+                print(g_sort[0])
+                pub_gauss_max_msg = PointStamped()
+                pub_gauss_max_msg.header = self.HEADER
+                pub_gauss_max_msg.point = Point(x=g_sort[0][0], y=g_sort[0][1], z=g_sort[0][2])
+                pub_gauss_max_msgs.append(pub_gauss_max_msg)
+                pub_gauss_max = rospy.Publisher("~output_gauss_max_{}".format(label), PointStamped, queue_size=1)
+                pub_gauss_maxs.append(pub_gauss_max)
+                POINTS.extend(g.tolist())
+                #print(len(POINTS))
+                self.FIELDS =[
+                    PointField(name="x", offset=0, datatype=7, count=1),
+                    PointField(name="y", offset=4, datatype=7, count=1),
+                    PointField(name="z", offset=8, datatype=7, count=1),
+                    PointField(name="rgb", offset=12, datatype=PointField.UINT32, count=1),
+                #PointField(name="pfh", offset=12, datatype=PointField.FLOAT32, count=1),
+                #PointField(name="w", offset=12, datatype=7, count=1),
+                ]
+            #print("point", len(POINTS))
+            pub_gauss_msg = pc2.create_cloud(self.HEADER, self.FIELDS, POINTS)
+            pub_gauss = rospy.Publisher("~output_gauss", PointCloud2, queue_size=1)
+
+
+            a = np.arange(-1, 9, 1)
+            b = np.arange(-20, -10, 1)
+            c = np.arange(0, 2, 0.2)
+            A, B, C = np.meshgrid(a, b, c)
+            d = np.c_[A.ravel(), B.ravel(), C.ravel()]
+            for i in range(len(weights)):
+                if i == 0:
+                    D = weights[0] * self.gaussian(d , means_3d[0], covars_3d[0])
+                else:
+                    D += weights[i] * self.gaussian(d , means_3d[i], covars_3d[i])
+            D = D.reshape(A.shape)
+            A = A.flatten()
+            B = B.flatten()
+            C = C.flatten()
+            D = D.flatten()
+            #print(D.shape)
+            #print(D.max())
+            
+            # h = np.vstack((A,B,C,D)).T
+            # print(h.shape)
+            # POINTS.extend(h.tolist())
+            # pub_gauss_msg = pc2.create_cloud(self.HEADER, self.FIELDS, POINTS)
+            # pub_gauss = rospy.Publisher("~output_gauss", PointCloud2, queue_size=1)
+            
+            
         r = rospy.Rate(10)
         while not rospy.is_shutdown():
             pub.publish(pub_msg)
-            pub_gauss.publish(pub_gauss_msg)
+            if args.gauss:
+                pub_gauss.publish(pub_gauss_msg)
+                for i, label in enumerate(labels):
+                    pub_gauss_maxs[i].publish(pub_gauss_max_msgs[i])
             r.sleep()
 
     def gaussian(self, x, mu, sigma):
@@ -133,15 +199,19 @@ class VisualizedSoundPos():
     def best_BIC_GMM(self, X, cvtype, component):
         gmm = mixture.GMM(n_components=component, covariance_type=cvtype)
         gmm.fit(X)
-        #print(gmm.weights_.shape)
         #print(gmm.means_.shape)
+        #print(gmm.covars_.shape)
+        #print(gmm.weights_.shape)
 
         #z成分無視(2次元に投影するため)
         means = gmm.means_[:, 0:2]
         covars = gmm.covars_[:, 0:2, 0:2]
         weights = gmm.weights_
-        return means, covars, weights
-    
+
+        a =gmm.means_
+        b =gmm.covars_
+        return means, covars, weights, a, b
+
     def calculate_BIC(self, X):
         lowestBIC = np.infty
         bic = []

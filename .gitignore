@@ -5,4 +5,6 @@
 *.wav
 *.png
 *.jpg
+*.npy
 /action_pkg/sound_pos_data/
+/action_pkg/gauss_data/
